@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { track } from "@vercel/analytics";
 import type { DimensionResult } from "@/lib/diagnostic-data";
 import type { Answers } from "@/lib/scoring";
 import { encodeAnswers } from "@/lib/share";
-import { getTotalScore, getTotalMax, getMatchingPatterns, getRedCount } from "@/lib/scoring";
+import { getTotalScore, getTotalMax } from "@/lib/scoring";
 
 interface ShareModalProps {
   open: boolean;
@@ -14,7 +14,7 @@ interface ShareModalProps {
   answers: Answers;
 }
 
-type ModalState = "form" | "loading" | "success" | "error";
+const statusLabels = { green: "Strong", amber: "Partial", red: "At Risk" } as const;
 
 export default function ShareModal({
   open,
@@ -22,31 +22,6 @@ export default function ShareModal({
   results,
   answers,
 }: ShareModalProps) {
-  const [state, setState] = useState<ModalState>("form");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [projectName, setProjectName] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const nameRef = useRef<HTMLInputElement>(null);
-
-  // Focus first field on open
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => nameRef.current?.focus(), 100);
-    }
-  }, [open]);
-
-  // Reset on close
-  useEffect(() => {
-    if (!open) {
-      const timer = setTimeout(() => {
-        setState("form");
-        setErrorMsg("");
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [open]);
-
   // Escape to close
   useEffect(() => {
     if (!open) return;
@@ -69,64 +44,32 @@ export default function ShareModal({
     };
   }, [open]);
 
-  const handleSend = useCallback(async () => {
-    if (!name.trim() || !email.trim() || !projectName.trim()) {
-      setErrorMsg("Please fill in all fields.");
-      setState("error");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setErrorMsg("Please enter a valid email address.");
-      setState("error");
-      return;
-    }
+  const handleCopyLink = useCallback(() => {
+    const encoded = encodeAnswers(answers);
+    const shareUrl = `${window.location.origin}/diagnostic?r=${encoded}`;
+    navigator.clipboard.writeText(shareUrl);
+    track("link_copied");
+  }, [answers]);
 
-    setState("loading");
-    setErrorMsg("");
+  const handleEmailShare = useCallback(() => {
+    const encoded = encodeAnswers(answers);
+    const shareUrl = `${window.location.origin}/diagnostic?r=${encoded}`;
+    const totalScore = getTotalScore(results);
+    const totalMax = getTotalMax(results);
 
-    try {
-      const encoded = encodeAnswers(answers);
-      const shareUrl = `${window.location.origin}/diagnostic?r=${encoded}`;
+    const dimensionSummary = results
+      .map((r) => `${r.dimension.name}: ${r.score}/${r.maxScore} (${statusLabels[r.status]})`)
+      .join("\n");
 
-      const res = await fetch("/api/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          projectName: projectName.trim(),
-          shareUrl,
-          totalScore: getTotalScore(results),
-          totalMax: getTotalMax(results),
-          dimensions: results.map((r) => ({
-            name: r.dimension.name,
-            score: r.score,
-            maxScore: r.maxScore,
-            status: r.status,
-          })),
-          patterns: getMatchingPatterns(results).map((p) => ({
-            label: p.label,
-            description: p.description,
-          })),
-          redCount: getRedCount(results),
-        }),
-      });
+    const subject = encodeURIComponent("Value Proposition Diagnostic — Results");
+    const body = encodeURIComponent(
+      `Value Proposition Diagnostic Results\n\nScore: ${totalScore}/${totalMax}\n\n${dimensionSummary}\n\nView full results: ${shareUrl}\n\n—\nAieutics — See further. Think deeper. Break through.\nhttps://aieutics.com`
+    );
 
-      if (!res.ok) {
-        throw new Error("Send failed");
-      }
-
-      track("email_shared");
-      setState("success");
-    } catch {
-      setErrorMsg("Something went wrong. Please try again.");
-      setState("error");
-    }
-  }, [name, email, projectName, answers, results]);
-
-  const isLoading = state === "loading";
-  const isSuccess = state === "success";
-  const showError = state === "error" && errorMsg;
+    window.open(`mailto:?subject=${subject}&body=${body}`, "_self");
+    track("email_shared");
+    onClose();
+  }, [answers, results, onClose]);
 
   return (
     <div
@@ -153,127 +96,37 @@ export default function ShareModal({
         style={{ transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)" }}
       >
         <div className="p-8">
-          {!isSuccess ? (
-            <>
-              <h3
-                id="share-modal-title"
-                className="font-[family-name:var(--font-heading)] text-xl font-bold mb-1"
-              >
-                Share Your Results
-              </h3>
-              <p className="font-[family-name:var(--font-body)] text-sm text-[var(--color-grey)] mb-7">
-                Send your value proposition diagnostic profile by email
-              </p>
+          <h3
+            id="share-modal-title"
+            className="font-[family-name:var(--font-heading)] text-xl font-bold mb-1"
+          >
+            Share Your Results
+          </h3>
+          <p className="font-[family-name:var(--font-body)] text-sm text-[var(--color-grey)] mb-7">
+            Send your value proposition diagnostic profile via email or copy the
+            link to share directly.
+          </p>
 
-              <div className="mb-5">
-                <label className="block font-[family-name:var(--font-heading)] text-[0.8rem] font-bold mb-1.5">
-                  Your name
-                </label>
-                <input
-                  ref={nameRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Jean Dupont"
-                  disabled={isLoading}
-                  className="w-full px-4 py-3 text-[0.9rem] font-[family-name:var(--font-body)] border border-[var(--color-grey-light)] rounded-xl bg-[var(--color-white)] text-[var(--color-foreground)] outline-none transition-all duration-200 placeholder:text-[var(--color-grey-lighter)] focus:border-[var(--color-orange)] focus:shadow-[0_0_0_3px_rgba(255,95,31,0.12)] disabled:bg-[var(--color-tag-bg)] disabled:text-[var(--color-grey)] disabled:cursor-not-allowed"
-                />
-              </div>
+          <button
+            onClick={handleEmailShare}
+            className="w-full py-3.5 font-[family-name:var(--font-heading)] text-[0.9rem] font-bold text-white bg-[var(--color-orange)] border-none rounded-xl cursor-pointer transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,95,31,0.3)] hover:scale-[1.01] mb-3"
+          >
+            Share via Email
+          </button>
 
-              <div className="mb-5">
-                <label className="block font-[family-name:var(--font-heading)] text-[0.8rem] font-bold mb-1.5">
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@company.com"
-                  disabled={isLoading}
-                  className="w-full px-4 py-3 text-[0.9rem] font-[family-name:var(--font-body)] border border-[var(--color-grey-light)] rounded-xl bg-[var(--color-white)] text-[var(--color-foreground)] outline-none transition-all duration-200 placeholder:text-[var(--color-grey-lighter)] focus:border-[var(--color-orange)] focus:shadow-[0_0_0_3px_rgba(255,95,31,0.12)] disabled:bg-[var(--color-tag-bg)] disabled:text-[var(--color-grey)] disabled:cursor-not-allowed"
-                />
-              </div>
+          <button
+            onClick={handleCopyLink}
+            className="w-full py-3.5 font-[family-name:var(--font-heading)] text-[0.9rem] font-bold text-[var(--color-foreground)] bg-transparent border border-[var(--color-grey-light)] rounded-xl cursor-pointer transition-all duration-200 hover:border-[var(--color-foreground)] mb-3"
+          >
+            Copy Link
+          </button>
 
-              <div className="mb-5">
-                <label className="block font-[family-name:var(--font-heading)] text-[0.8rem] font-bold mb-1.5">
-                  Project / startup name
-                </label>
-                <input
-                  type="text"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  placeholder="e.g. DataFlow Analytics"
-                  disabled={isLoading}
-                  className="w-full px-4 py-3 text-[0.9rem] font-[family-name:var(--font-body)] border border-[var(--color-grey-light)] rounded-xl bg-[var(--color-white)] text-[var(--color-foreground)] outline-none transition-all duration-200 placeholder:text-[var(--color-grey-lighter)] focus:border-[var(--color-orange)] focus:shadow-[0_0_0_3px_rgba(255,95,31,0.12)] disabled:bg-[var(--color-tag-bg)] disabled:text-[var(--color-grey)] disabled:cursor-not-allowed"
-                />
-              </div>
-
-              <p className="text-[0.7rem] text-[var(--color-grey)] leading-relaxed mb-5">
-                Your name and email are used solely to send your diagnostic results. We don&apos;t store your personal data.
-              </p>
-
-              {showError && (
-                <p className="text-[0.8rem] text-[var(--color-red)] mb-4">
-                  {errorMsg}
-                </p>
-              )}
-
-              <button
-                onClick={handleSend}
-                disabled={isLoading}
-                className={`
-                  w-full py-3.5 font-[family-name:var(--font-heading)] text-[0.9rem] font-bold
-                  text-white bg-[var(--color-orange)] border-none rounded-xl cursor-pointer
-                  transition-all duration-300
-                  hover:shadow-[0_0_30px_rgba(255,95,31,0.3)] hover:scale-[1.01]
-                  disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:scale-100
-                  ${isLoading ? "animate-pulse" : ""}
-                `}
-              >
-                {isLoading ? "Sending..." : "Send Results"}
-              </button>
-
-              <button
-                onClick={onClose}
-                className="block w-full text-center mt-4 font-[family-name:var(--font-heading)] text-[0.8rem] font-bold text-[var(--color-grey)] bg-transparent border-none cursor-pointer hover:text-[var(--color-foreground)] transition-colors duration-200"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <div className="text-center py-4">
-              <div className="w-14 h-14 rounded-full bg-[rgba(90,154,110,0.12)] inline-flex items-center justify-center mb-5">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#5a9a6e"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <p className="font-[family-name:var(--font-heading)] text-lg font-bold mb-2">
-                Results sent!
-              </p>
-              <p className="font-[family-name:var(--font-body)] text-sm text-[var(--color-grey)] leading-relaxed mb-6">
-                Your diagnostic profile has been sent to{" "}
-                <strong className="text-[var(--color-foreground)]">{email}</strong>.
-                <br />
-                You&apos;ll also receive a copy at{" "}
-                <strong className="text-[var(--color-foreground)]">hello@aieutics.com</strong>.
-              </p>
-              <button
-                onClick={onClose}
-                className="inline-block px-10 py-3 font-[family-name:var(--font-heading)] text-sm font-bold border border-[var(--color-grey-light)] rounded-xl bg-transparent text-[var(--color-foreground)] cursor-pointer hover:border-[var(--color-foreground)] hover:bg-[var(--color-tag-bg)] transition-all duration-200"
-              >
-                Done
-              </button>
-            </div>
-          )}
+          <button
+            onClick={onClose}
+            className="block w-full text-center mt-2 font-[family-name:var(--font-heading)] text-[0.8rem] font-bold text-[var(--color-grey)] bg-transparent border-none cursor-pointer hover:text-[var(--color-foreground)] transition-colors duration-200"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
