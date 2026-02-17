@@ -32,12 +32,12 @@ export default function Home() {
           <p className="font-[family-name:var(--font-body)] text-lg md:text-xl text-[var(--color-foreground)] leading-relaxed mb-4">
             20 binary questions. 5 dimensions. No middle ground.
           </p>
-          <p className="font-[family-name:var(--font-body)] text-base md:text-lg text-[var(--color-grey)] leading-relaxed mb-4">
+          <p className="font-[family-name:var(--font-body)] text-sm md:text-base text-[var(--color-grey)] leading-relaxed mb-4">
             The test is simple: if your champion can&apos;t explain why they should
             buy from you in one sentence to their boss, your value proposition
             isn&apos;t working.
           </p>
-          <p className="font-[family-name:var(--font-body)] text-base md:text-lg text-[var(--color-grey)] leading-relaxed mb-10">
+          <p className="font-[family-name:var(--font-body)] text-sm md:text-base text-[var(--color-grey)] leading-relaxed mb-10">
             This diagnostic tests five dimensions of value proposition strength
             — including whether the type of value you articulate matches the type
             your buyer actually decides on.
