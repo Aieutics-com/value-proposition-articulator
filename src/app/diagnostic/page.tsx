@@ -71,7 +71,7 @@ function DiagnosticContent() {
     setAnswers({});
     setCurrentStep(0);
     setShowResults(false);
-    window.history.replaceState({}, "", "/diagnostic");
+    window.history.replaceState({}, "", `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/diagnostic`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -84,7 +84,7 @@ function DiagnosticContent() {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <Link href="/" className="hover:opacity-70 transition-opacity">
             <Image
-              src="/aieutics_transparentbg_logo.png"
+              src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/aieutics_transparentbg_logo.png`}
               alt="Aieutics"
               width={72}
               height={72}
@@ -170,7 +170,7 @@ function DiagnosticContent() {
       <footer className="px-6 py-4 border-t border-[var(--color-grey-light)]">
         <div className="max-w-2xl mx-auto flex flex-col items-center gap-2">
           <Image
-            src="/aieutics_transparentbg_logo.png"
+            src={`${process.env.NEXT_PUBLIC_BASE_PATH || ""}/aieutics_transparentbg_logo.png`}
             alt="Aieutics"
             width={20}
             height={20}
