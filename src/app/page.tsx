@@ -133,8 +133,11 @@ export default function Home() {
             className="h-6 w-auto opacity-30 brightness-0 invert"
           />
           <p className="font-[family-name:var(--font-body)] text-xs text-white/35">
-            Developed by Aieutics from the Critical Path Layers framework,
-            integrating Philippe Meda&apos;s value type taxonomy.
+            Built by{" "}
+            <a href="https://www.aieutics.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/60 transition-colors">Aieutics</a>{" "}
+            from patterns observed across executive coaching, startup &amp; scaleup acceleration programmes, and consulting engagements.
+            These tools are starting points. If your results raise questions,{" "}
+            <a href="https://www.aieutics.com" target="_blank" rel="noopener noreferrer" className="hover:text-white/60 transition-colors">let&apos;s talk</a>.
           </p>
         </div>
       </footer>
