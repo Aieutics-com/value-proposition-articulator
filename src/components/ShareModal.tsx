@@ -46,14 +46,14 @@ export default function ShareModal({
 
   const handleCopyLink = useCallback(() => {
     const encoded = encodeAnswers(answers);
-    const shareUrl = `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/diagnostic?r=${encoded}`;
+    const shareUrl = `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/diagnostic-demo?r=${encoded}`;
     navigator.clipboard.writeText(shareUrl);
     track("link_copied");
   }, [answers]);
 
   const handleEmailShare = useCallback(() => {
     const encoded = encodeAnswers(answers);
-    const shareUrl = `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/diagnostic?r=${encoded}`;
+    const shareUrl = `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH || ""}/diagnostic-demo?r=${encoded}`;
     const totalScore = getTotalScore(results);
     const totalMax = getTotalMax(results);
 
